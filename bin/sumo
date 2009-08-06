@@ -1,0 +1,32 @@
+#!/usr/bin/env ruby1.9
+
+require File.dirname(__FILE__) + '/../lib/sumo'
+
+require 'ec2'
+require 'thor'
+require 'yaml'
+
+class CLI < Thor
+	desc "launch", "launch an instance"
+	def launch
+		instance_id = Sumo.new.launch
+		puts "#{instance_id} launched"
+	end
+
+	desc "list", "list running instances"
+	def list
+		instances = Sumo.new.list
+
+		instances.each do |inst|
+			printf "%-50s %-12s %s\n", inst[:hostname], inst[:instance_id], inst[:status]
+		end
+	end
+
+	desc "terminate <instance_id>", "terminate an instance"
+	def terminate(id)
+		Sumo.new.terminate(id)
+		puts "#{id} scheduled for termination"
+	end
+end
+
+CLI.start
