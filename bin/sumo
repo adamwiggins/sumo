@@ -13,24 +13,17 @@ class CLI < Thor
 		puts "#{instance_id} launched"
 	end
 
-	desc "ssh", "ssh to first instance"
-	def ssh
+	desc "ssh", "ssh to a specified instance or first available"
+	def ssh(id=nil)
 		sumo = Sumo.new
-		inst = sumo.list.select { |i| i[:status] == 'running' }.first
-		if inst
-			system "ssh -i #{sumo.keypair_file} root@#{inst[:hostname]}"
-		else
-			puts "No instances available for ssh"
-		end
+		inst = sumo.find(id) || sumo.running.first || raise("No running instances")
+		system "ssh -i #{sumo.keypair_file} root@#{inst[:hostname]}"
 	end
 
 	desc "bootstrap", "bootstrap chef and cookbooks"
-	def bootstrap
+	def bootstrap(id=nil)
 		sumo = Sumo.new
-		inst = sumo.list.select { |i| i[:status] == 'running' }.first
-		raise "No instance running" unless inst
-
-		role = 'couchdb'
+		inst = sumo.find(id) || sumo.running.first || raise("No running instances")
 
 		commands = [
 			'apt-get update',
@@ -52,8 +45,7 @@ class CLI < Thor
 	desc "role", "setup instance as a role"
 	def role(role)
 		sumo = Sumo.new
-		inst = sumo.list.select { |i| i[:status] == 'running' }.first
-		raise "No instance running" unless inst
+		inst = sumo.find(id) || sumo.running.first || raise("No running instances")
 
 		puts "---> Setting #{inst[:hostname]} to be #{role}"
 		sumo.ssh(inst[:hostname], "cd chef-cookbooks && /var/lib/gems/1.8/bin/chef-solo -j roles/#{role}.json")
@@ -61,17 +53,18 @@ class CLI < Thor
 
 	desc "list", "list running instances"
 	def list
-		instances = Sumo.new.list
-
-		instances.each do |inst|
+		Sumo.new.list.each do |inst|
 			printf "%-50s %-12s %s\n", inst[:hostname], inst[:instance_id], inst[:status]
 		end
 	end
 
 	desc "terminate <instance_id>", "terminate an instance"
-	def terminate(id)
-		Sumo.new.terminate(id)
-		puts "#{id} scheduled for termination"
+	def terminate(id=nil)
+		sumo = Sumo.new
+		inst = sumo.find(id) || sumo.running.first || raise("No running instances")
+
+		Sumo.new.terminate(inst[:instance_id])
+		puts "#{inst[:hostname] || inst[:instance_id]} scheduled for termination"
 	end
 end
 

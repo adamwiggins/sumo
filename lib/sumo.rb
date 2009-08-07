@@ -14,6 +14,10 @@ class Sumo
 	end
 
 	def list
+		@list ||= fetch_list
+	end
+
+	def fetch_list
 		result = ec2.describe_instances
 		return [] unless result.reservationSet
 
@@ -31,12 +35,17 @@ class Sumo
 	end
 
 	def find(id_or_hostname)
+		return unless id_or_hostname
 		id_or_hostname = id_or_hostname.strip.downcase
 		list.detect do |inst|
 			inst[:hostname] == id_or_hostname or
 			inst[:instance_id] == id_or_hostname or
 			inst[:instance_id].gsub(/^i-/, '') == id_or_hostname
 		end
+	end
+
+	def running
+		list.select { |i| i[:status] == 'running' }
 	end
 
 	def ssh(hostname, cmd)
@@ -46,9 +55,8 @@ class Sumo
 		end
 	end
 
-	def terminate(id)
-		inst = find(id) unless id.match(/^i-/)
-		ec2.terminate_instances(:instance_id => [ inst[:instance_id] ])
+	def terminate(instance_id)
+		ec2.terminate_instances(:instance_id => [ instance_id ])
 	end
 
 	def config
