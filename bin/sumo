@@ -43,7 +43,7 @@ class CLI < Thor
 	end
 
 	desc "role", "setup instance as a role"
-	def role(role)
+	def role(role, id=nil)
 		sumo = Sumo.new
 		inst = sumo.find(id) || sumo.running.first || raise("No running instances")
 
