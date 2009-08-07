@@ -39,7 +39,11 @@ class Sumo
 		end
 	end
 
-	def find_by_id(id)
+	def ssh(hostname, cmd)
+		puts "$ #{cmd}"
+		IO.popen("ssh -i #{keypair_file} root@#{hostname} 2>&1", "w") do |pipe|
+			pipe.puts cmd
+		end
 	end
 
 	def terminate(id)

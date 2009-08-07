@@ -30,6 +30,8 @@ class CLI < Thor
 		inst = sumo.list.select { |i| i[:status] == 'running' }.first
 		raise "No instance running" unless inst
 
+		role = 'couchdb'
+
 		commands = [
 			'apt-get update',
 			'apt-get install -y ruby',
@@ -38,15 +40,23 @@ class CLI < Thor
 			'apt-get install -y git-core',
 			'gem sources -a http://gems.opscode.com',
 			'gem install chef ohai --no-rdoc --no-ri',
+			"git clone #{sumo.config['cookbooks_url']}",
 		]
 
 		puts "---> Bootstrapping #{inst[:hostname]}"
 		commands.each do |cmd|
-			puts "$ #{cmd}"
-			IO.popen("ssh -i #{sumo.keypair_file} root@#{inst[:hostname]} 2>&1", "w") do |pipe|
-				pipe.puts cmd
-			end
+			sumo.ssh(inst[:hostname], cmd)
 		end
+	end
+
+	desc "role", "setup instance as a role"
+	def role(role)
+		sumo = Sumo.new
+		inst = sumo.list.select { |i| i[:status] == 'running' }.first
+		raise "No instance running" unless inst
+
+		puts "---> Setting #{inst[:hostname]} to be #{role}"
+		sumo.ssh(inst[:hostname], "cd chef-cookbooks && /var/lib/gems/1.8/bin/chef-solo -j roles/#{role}.json")
 	end
 
 	desc "list", "list running instances"
