@@ -30,8 +30,21 @@ class Sumo
 		instances
 	end
 
-	def terminate(instance_id)
-		ec2.terminate_instances(:instance_id => [ instance_id ])
+	def find(id_or_hostname)
+		id_or_hostname = id_or_hostname.strip.downcase
+		instances.detect do |inst|
+			inst[:hostname] == id_or_hostname or
+			inst[:instance_id] == inst or
+			inst[:instance_id].gsub(/^i-/, '') == inst
+		end
+	end
+
+	def find_by_id(id)
+	end
+
+	def terminate(id)
+		id = find(id) unless id.match(/^i-/)
+		ec2.terminate_instances(:instance_id => [ id ])
 	end
 
 	def config
