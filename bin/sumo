@@ -13,6 +13,17 @@ class CLI < Thor
 		puts "#{instance_id} launched"
 	end
 
+	desc "ssh", "ssh to first instance"
+	def ssh
+		sumo = Sumo.new
+		inst = sumo.list.select { |i| i[:status] == 'running' }.first
+		if inst
+			system "ssh -i #{sumo.keypair_file} root@#{inst[:hostname]}"
+		else
+			puts "No instances available for ssh"
+		end
+	end
+
 	desc "list", "list running instances"
 	def list
 		instances = Sumo.new.list

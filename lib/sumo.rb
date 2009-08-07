@@ -3,9 +3,12 @@ class Sumo
 		ami = config['ami']
 		raise "No AMI selected" unless ami
 
+		create_keypair unless File.exists? keypair_file
+
 		result = ec2.run_instances(
 			:image_id => ami,
-			:instance_type => config['instance_size'] || 'm1.small'
+			:instance_type => config['instance_size'] || 'm1.small',
+			:key_name => 'sumo'
 		)
 		result.instancesSet.item[0].instanceId
 	end
@@ -35,10 +38,24 @@ class Sumo
 		@config ||= read_config
 	end
 
+	def sumo_dir
+		"#{ENV['HOME']}/.sumo"
+	end
+
 	def read_config
-		YAML.load File.read("#{ENV['HOME']}/.sumo/config.yml")
+		YAML.load File.read("#{sumo_dir}/config.yml")
 	rescue Errno::ENOENT
 		raise "Sumo is not configured, please fill in ~/.sumo/config.yml"
+	end
+
+	def keypair_file
+		"#{sumo_dir}/keypair.pem"
+	end
+
+	def create_keypair
+		keypair = ec2.create_keypair(:key_name => "sumo").keyMaterial
+		File.open(keypair_file, 'w') { |f| f.write keypair }
+		File.chmod 0600, keypair_file
 	end
 
 	def ec2
