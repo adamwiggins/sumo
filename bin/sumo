@@ -93,9 +93,11 @@ class CLI < Thor
 		end
 
 		def connect_ssh(hostname)
+			sumo.wait_for_ssh(hostname)
+
 			system "ssh -i #{sumo.keypair_file} root@#{hostname}"
 			if $?.success?
-				puts "\nExited.  Type 'sumo terminate' to terminate the instance if you're done with it."
+				puts "\nType 'sumo terminate' if you're done with this instance."
 			end
 		end
 	end

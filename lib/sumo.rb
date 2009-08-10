@@ -1,5 +1,6 @@
 require 'ec2'
 require 'yaml'
+require 'socket'
 
 class Sumo
 	def launch
@@ -74,6 +75,19 @@ class Sumo
 				end
 			end
 			sleep 1
+		end
+	end
+
+	def wait_for_ssh(hostname)
+		raise ArgumentError unless hostname
+		loop do
+			begin
+				Timeout::timeout(4) do
+					TCPSocket.new(hostname, 22)
+					return
+				end
+			rescue SocketError, Timeout::Error, Errno::ECONNREFUSED, Errno::EHOSTUNREACH
+			end
 		end
 	end
 
