@@ -9,20 +9,18 @@ require 'yaml'
 class CLI < Thor
 	desc "launch", "launch an instance"
 	def launch
-		instance_id = Sumo.new.launch
+		instance_id = sumo.launch
 		puts "#{instance_id} launched"
 	end
 
 	desc "ssh", "ssh to a specified instance or first available"
 	def ssh(id=nil)
-		sumo = Sumo.new
 		inst = sumo.find(id) || sumo.running.first || raise("No running instances")
 		system "ssh -i #{sumo.keypair_file} root@#{inst[:hostname]}"
 	end
 
 	desc "bootstrap", "bootstrap chef and cookbooks"
 	def bootstrap(id=nil)
-		sumo = Sumo.new
 		inst = sumo.find(id) || sumo.running.first || raise("No running instances")
 
 		commands = [
@@ -44,7 +42,6 @@ class CLI < Thor
 
 	desc "role", "setup instance as a role"
 	def role(role, id=nil)
-		sumo = Sumo.new
 		inst = sumo.find(id) || sumo.running.first || raise("No running instances")
 
 		puts "---> Setting #{inst[:hostname]} to be #{role}"
@@ -53,18 +50,23 @@ class CLI < Thor
 
 	desc "list", "list running instances"
 	def list
-		Sumo.new.list.each do |inst|
+		sumo.list.each do |inst|
 			printf "%-50s %-12s %s\n", inst[:hostname], inst[:instance_id], inst[:status]
 		end
 	end
 
 	desc "terminate <instance_id>", "terminate an instance"
 	def terminate(id=nil)
-		sumo = Sumo.new
 		inst = sumo.find(id) || sumo.running.first || raise("No running instances")
 
-		Sumo.new.terminate(inst[:instance_id])
+		sumo.terminate(inst[:instance_id])
 		puts "#{inst[:hostname] || inst[:instance_id]} scheduled for termination"
+	end
+
+	no_tasks do
+		def sumo
+			@sumo ||= Sumo.new
+		end
 	end
 end
 
