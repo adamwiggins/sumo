@@ -13,7 +13,7 @@ class CLI < Thor
 		puts "#{instance_id} launched"
 	end
 
-	desc "ssh", "ssh to a specified instance or first available"
+	desc "ssh [<instance_id or hostname>]", "ssh to a specified instance or first available"
 	def ssh(id=nil)
 		inst = sumo.find(id) || sumo.running.first || raise("No running instances")
 		system "ssh -i #{sumo.keypair_file} root@#{inst[:hostname]}"
@@ -55,7 +55,7 @@ class CLI < Thor
 		end
 	end
 
-	desc "terminate <instance_id>", "terminate an instance"
+	desc "terminate [<instance_id or hostname>]", "terminate specified instance or first available"
 	def terminate(id=nil)
 		inst = sumo.find(id) || sumo.running.first || raise("No running instances")
 
