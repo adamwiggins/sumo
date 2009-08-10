@@ -1,3 +1,6 @@
+require 'ec2'
+require 'yaml'
+
 class Sumo
 	def launch
 		ami = config['ami']
@@ -54,6 +57,24 @@ class Sumo
 
 	def list_by_status(status)
 		list.select { |i| i[:status] == status }
+	end
+
+	def instance_info(instance_id)
+		fetch_list.detect do |inst|
+			inst[:instance_id] == instance_id
+		end
+	end
+
+	def wait_for_hostname(instance_id)
+		raise ArgumentError unless instance_id and instance_id.match(/^i-/)
+		loop do
+			if inst = instance_info(instance_id)
+				if hostname = inst[:hostname]
+					return hostname
+				end
+			end
+			sleep 1
+		end
 	end
 
 	def ssh(hostname, cmd)

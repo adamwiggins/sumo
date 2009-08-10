@@ -2,22 +2,25 @@
 
 require File.dirname(__FILE__) + '/../lib/sumo'
 
-require 'ec2'
 require 'thor'
-require 'yaml'
 
 class CLI < Thor
 	desc "launch", "launch an instance"
 	def launch
-		task "Launching instance" do
-			sumo.launch
-		end
+		id = task("Launching instance") { sumo.launch }
+		host = task("Acquiring hostname") { sumo.wait_for_hostname(id) }
+
+		puts "\nLogging you in via ssh.  Type 'exit' or Ctrl-D to return to your local system."
+		puts '-' * 78
+
+		connect_ssh(host)
 	end
 
 	desc "ssh [<instance_id or hostname>]", "ssh to a specified instance or first available"
 	def ssh(id=nil)
 		inst = sumo.find(id) || sumo.running.first || abort("No running instances")
-		system "ssh -i #{sumo.keypair_file} root@#{inst[:hostname]}"
+		hostname = inst[:hostname] || wait_for_hostname(inst[:instance_id])
+		connect_ssh hostname
 	end
 
 	desc "bootstrap", "bootstrap chef and cookbooks"
@@ -58,10 +61,20 @@ class CLI < Thor
 
 	desc "terminate [<instance_id or hostname>]", "terminate specified instance or first available"
 	def terminate(id=nil)
-		inst = sumo.find(id) || (sumo.running | sumo.pending).first || abort("No running instances")
+		inst = sumo.find(id) || (sumo.running | sumo.pending).first || abort("No running or pending instances")
 
 		sumo.terminate(inst[:instance_id])
 		puts "#{inst[:hostname] || inst[:instance_id]} scheduled for termination"
+	end
+
+	desc "terminate_all", "terminate all instances"
+	def terminate_all
+		instances = (sumo.running | sumo.pending)
+		abort("No running or pending instances") if instances.empty?
+		instances.each do |inst|
+			sumo.terminate(inst[:instance_id])
+			puts "#{inst[:hostname] || inst[:instance_id]} scheduled for termination"
+		end
 	end
 
 	no_tasks do
@@ -76,6 +89,14 @@ class CLI < Thor
 			finish = Time.now
 			time = sprintf("%0.1f", finish - start)
 			puts "#{result} (#{time}s)"
+			result
+		end
+
+		def connect_ssh(hostname)
+			system "ssh -i #{sumo.keypair_file} root@#{hostname}"
+			if $?.success?
+				puts "\nExited.  Type 'sumo terminate' to terminate the instance if you're done with it."
+			end
 		end
 	end
 end
