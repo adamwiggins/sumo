@@ -9,8 +9,9 @@ require 'yaml'
 class CLI < Thor
 	desc "launch", "launch an instance"
 	def launch
-		instance_id = sumo.launch
-		puts "#{instance_id} launched"
+		task "Launching instance" do
+			sumo.launch
+		end
 	end
 
 	desc "ssh [<instance_id or hostname>]", "ssh to a specified instance or first available"
@@ -66,6 +67,15 @@ class CLI < Thor
 	no_tasks do
 		def sumo
 			@sumo ||= Sumo.new
+		end
+
+		def task(msg, &block)
+			printf "---> %-24s ", "#{msg}..."
+			start = Time.now
+			result = block.call || 'done'
+			finish = Time.now
+			time = sprintf("%0.1f", finish - start)
+			puts "#{result} (#{time}s)"
 		end
 	end
 end
