@@ -45,7 +45,15 @@ class Sumo
 	end
 
 	def running
-		list.select { |i| i[:status] == 'running' }
+		list_by_status('running')
+	end
+
+	def pending
+		list_by_status('pending')
+	end
+
+	def list_by_status(status)
+		list.select { |i| i[:status] == status }
 	end
 
 	def ssh(hostname, cmd)

@@ -16,13 +16,13 @@ class CLI < Thor
 
 	desc "ssh [<instance_id or hostname>]", "ssh to a specified instance or first available"
 	def ssh(id=nil)
-		inst = sumo.find(id) || sumo.running.first || raise("No running instances")
+		inst = sumo.find(id) || sumo.running.first || abort("No running instances")
 		system "ssh -i #{sumo.keypair_file} root@#{inst[:hostname]}"
 	end
 
 	desc "bootstrap", "bootstrap chef and cookbooks"
 	def bootstrap(id=nil)
-		inst = sumo.find(id) || sumo.running.first || raise("No running instances")
+		inst = sumo.find(id) || sumo.running.first || abort("No running instances")
 
 		commands = [
 			'apt-get update',
@@ -43,7 +43,7 @@ class CLI < Thor
 
 	desc "role", "setup instance as a role"
 	def role(role, id=nil)
-		inst = sumo.find(id) || sumo.running.first || raise("No running instances")
+		inst = sumo.find(id) || sumo.running.first || abort("No running instances")
 
 		puts "---> Setting #{inst[:hostname]} to be #{role}"
 		sumo.ssh(inst[:hostname], "cd chef-cookbooks && /var/lib/gems/1.8/bin/chef-solo -j roles/#{role}.json")
@@ -58,7 +58,7 @@ class CLI < Thor
 
 	desc "terminate [<instance_id or hostname>]", "terminate specified instance or first available"
 	def terminate(id=nil)
-		inst = sumo.find(id) || sumo.running.first || raise("No running instances")
+		inst = sumo.find(id) || (sumo.running | sumo.pending).first || abort("No running instances")
 
 		sumo.terminate(inst[:instance_id])
 		puts "#{inst[:hostname] || inst[:instance_id]} scheduled for termination"
