@@ -137,6 +137,10 @@ class Sumo
 		ec2.terminate_instances(:instance_id => [ instance_id ])
 	end
 
+	def console_output(instance_id)
+		ec2.get_console_output(:instance_id => instance_id)["output"]
+	end
+
 	def config
 		@config ||= read_config
 	end

@@ -62,6 +62,13 @@ class CLI < Thor
 		end
 	end
 
+	desc "console [<instance_id or hostname>]", "get console output for instance or first available"
+	def console(id=nil)
+		inst = sumo.find(id) || (sumo.running | sumo.pending).first || abort("No running or pending instances")
+
+		puts sumo.console_output(inst[:instance_id]).inspect
+	end
+
 	desc "terminate [<instance_id or hostname>]", "terminate specified instance or first available"
 	def terminate(id=nil)
 		inst = sumo.find(id) || (sumo.running | sumo.pending).first || abort("No running or pending instances")
