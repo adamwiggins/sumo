@@ -1,4 +1,4 @@
-#!/usr/bin/env ruby1.9
+#!/usr/bin/env ruby
 
 require File.dirname(__FILE__) + '/../lib/sumo'
 
