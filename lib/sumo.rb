@@ -22,6 +22,42 @@ class Sumo
 		@list ||= fetch_list
 	end
 
+	def volumes
+		result = ec2.describe_volumes
+		result["volumeSet"]["item"]
+	end
+
+	def attach(volume, instance, device)
+		result = ec2.attach_volume(
+			:volume_id => volume,
+			:instance_id => instance,
+			:device => device
+		)
+		"done"
+	end
+
+	def detach(volume)
+		result = ec2.detach_volume(
+			:volume_id => volume,
+			:force => "true"
+		)
+		"done"
+	end
+
+	def create_volume(size)
+		result = ec2.create_volume(
+			:availability_zone => config['availability_zone'] || 'us-east-1b',
+			:size => size
+		)
+		result["volumeId"]
+	end
+
+	def delete_volume(volume)
+		result = ec2.delete_volume(
+			:volume_id => volume
+		)
+	end
+
 	def fetch_list
 		result = ec2.describe_instances
 		return [] unless result.reservationSet
