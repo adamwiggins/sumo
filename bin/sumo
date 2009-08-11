@@ -16,6 +16,16 @@ class CLI < Thor
 			role.split(',').each do |role|
 				task("Setup #{role}") { sumo.setup_role(host, role) }
 			end
+
+			resources = sumo.resources(host)
+			unless resources.empty?
+				task("Opening firewall") do
+					ports = resources.map { |r| r.match(/:(\d+)\//)[1] }
+					ports.each { |port| sumo.open_firewall(port) }
+					"ports " + ports.join(", ")
+				end
+			end
+
 			puts
 			display_resources(host)
 		else
@@ -105,7 +115,7 @@ class CLI < Thor
 		end
 
 		def display_resources(host)
-			resources = sumo.fetch_resources(host)
+			resources = sumo.resources(host)
 			unless resources.empty?
 				puts "Your instance is exporting the following resources:"
 				resources.each do |resource|

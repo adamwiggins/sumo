@@ -9,10 +9,14 @@ class Sumo
 
 		create_keypair unless File.exists? keypair_file
 
+		create_security_group
+		open_firewall(22)
+
 		result = ec2.run_instances(
 			:image_id => ami,
 			:instance_type => config['instance_size'] || 'm1.small',
-			:key_name => 'sumo'
+			:key_name => 'sumo',
+			:group_id => [ 'sumo' ]
 		)
 		result.instancesSet.item[0].instanceId
 	end
@@ -120,6 +124,11 @@ class Sumo
 		end
 	end
 
+	def resources(hostname)
+		@resources ||= {}
+		@resources[hostname] ||= fetch_resources(hostname)
+	end
+
 	def fetch_resources(hostname)
 		cmd = "ssh -i #{keypair_file} root@#{hostname} 'cat /root/resources' 2>&1"
 		out = IO.popen(cmd, 'r') { |pipe| pipe.read }
@@ -159,6 +168,22 @@ class Sumo
 		keypair = ec2.create_keypair(:key_name => "sumo").keyMaterial
 		File.open(keypair_file, 'w') { |f| f.write keypair }
 		File.chmod 0600, keypair_file
+	end
+
+	def create_security_group
+		ec2.create_security_group(:group_name => 'sumo', :group_description => 'Sumo')
+	rescue EC2::InvalidGroupDuplicate
+	end
+
+	def open_firewall(port)
+		ec2.authorize_security_group_ingress(
+			:group_name => 'sumo',
+			:ip_protocol => 'tcp',
+			:from_port => port,
+			:to_port => port,
+			:cidr_ip => '0.0.0.0/0'
+		)
+	rescue EC2::InvalidPermissionDuplicate
 	end
 
 	def ec2
