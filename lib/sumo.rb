@@ -12,6 +12,7 @@ class Sumo
 		result = ec2.run_instances(
 			:image_id => ami,
 			:instance_type => config['instance_size'] || 'm1.small',
+			:availability_zone => config['availability_zone'] || 'us-east-1b',
 			:key_name => 'sumo'
 		)
 		result.instancesSet.item[0].instanceId
