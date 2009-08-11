@@ -21,7 +21,11 @@ You can also manage multiple instances via "sumo list" and specifying hostname o
 
 == Setup
 
-Create ~/.sumo/config.yml containing:
+Dependencies:
+
+    $ sudo gem install amazon-ec2 thor
+
+Then create ~/.sumo/config.yml containing:
 
     ---
     access_id: <your amazon access key id>
