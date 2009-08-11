@@ -16,6 +16,8 @@ class CLI < Thor
 			role.split(',').each do |role|
 				task("Setup #{role}") { sumo.setup_role(host, role) }
 			end
+			puts
+			display_resources(host)
 		else
 			puts "\nLogging you in via ssh.  Type 'exit' or Ctrl-D to return to your local system."
 			puts '-' * 78
@@ -28,6 +30,13 @@ class CLI < Thor
 		inst = sumo.find(id) || sumo.running.first || abort("No running instances")
 		hostname = inst[:hostname] || wait_for_hostname(inst[:instance_id])
 		connect_ssh hostname
+	end
+
+	desc "resources [<instance_id or hostname>]", "show resources exported by an instance"
+	def resources(id=nil)
+		inst = sumo.find(id) || sumo.running.first || abort("No running instances")
+		hostname = inst[:hostname] || wait_for_hostname(inst[:instance_id])
+		display_resources(inst[:hostname])
 	end
 
 	desc "bootstrap", "bootstrap chef and cookbooks"
@@ -92,6 +101,16 @@ class CLI < Thor
 			system "ssh -i #{sumo.keypair_file} root@#{hostname}"
 			if $?.success?
 				puts "\nType 'sumo terminate' if you're done with this instance."
+			end
+		end
+
+		def display_resources(host)
+			resources = sumo.fetch_resources(host)
+			unless resources.empty?
+				puts "Your instance is exporting the following resources:"
+				resources.each do |resource|
+					puts "  #{resource}"
+				end
 			end
 		end
 	end

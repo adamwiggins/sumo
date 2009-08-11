@@ -120,6 +120,19 @@ class Sumo
 		end
 	end
 
+	def fetch_resources(hostname)
+		cmd = "ssh -i #{keypair_file} root@#{hostname} 'cat /root/resources' 2>&1"
+		out = IO.popen(cmd, 'r') { |pipe| pipe.read }
+		abort "failed to read resources, output:\n#{out}" unless $?.success?
+		parse_resources(out, hostname)
+	end
+
+	def parse_resources(raw, hostname)
+		raw.split("\n").map do |line|
+			line.gsub(/localhost/, hostname)
+		end
+	end
+
 	def terminate(instance_id)
 		ec2.terminate_instances(:instance_id => [ instance_id ])
 	end
