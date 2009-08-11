@@ -5,15 +5,22 @@ require File.dirname(__FILE__) + '/../lib/sumo'
 require 'thor'
 
 class CLI < Thor
-	desc "launch", "launch an instance"
-	def launch
-		id = task("Launching instance") { sumo.launch }
-		host = task("Acquiring hostname") { sumo.wait_for_hostname(id) }
+	desc "launch [<role>]", "launch an instance as role, or omit to ssh to vanilla instance"
+	def launch(role=nil)
+		id = task("Launch instance") { sumo.launch }
+		host = task("Acquire hostname") { sumo.wait_for_hostname(id) }
+		task("Wait for ssh") { sumo.wait_for_ssh(host) }
 
-		puts "\nLogging you in via ssh.  Type 'exit' or Ctrl-D to return to your local system."
-		puts '-' * 78
-
-		connect_ssh(host)
+		if role
+			task("Bootstrap chef") { sumo.bootstrap_chef(host) }
+			role.split(',').each do |role|
+				task("Setup #{role}") { sumo.setup_role(host, role) }
+			end
+		else
+			puts "\nLogging you in via ssh.  Type 'exit' or Ctrl-D to return to your local system."
+			puts '-' * 78
+			connect_ssh(host)
+		end
 	end
 
 	desc "ssh [<instance_id or hostname>]", "ssh to a specified instance or first available"
@@ -26,30 +33,17 @@ class CLI < Thor
 	desc "bootstrap", "bootstrap chef and cookbooks"
 	def bootstrap(id=nil)
 		inst = sumo.find(id) || sumo.running.first || abort("No running instances")
-
-		commands = [
-			'apt-get update',
-			'apt-get install -y ruby',
-			'apt-get install -y ruby-dev',
-			'apt-get install -y rubygems',
-			'apt-get install -y git-core',
-			'gem sources -a http://gems.opscode.com',
-			'gem install chef ohai --no-rdoc --no-ri',
-			"git clone #{sumo.config['cookbooks_url']}",
-		]
-
-		puts "---> Bootstrapping #{inst[:hostname]}"
-		commands.each do |cmd|
-			sumo.ssh(inst[:hostname], cmd)
+		task "Bootstrap chef" do
+			sumo.bootstrap_chef(inst[:hostname])
 		end
 	end
 
 	desc "role", "setup instance as a role"
 	def role(role, id=nil)
 		inst = sumo.find(id) || sumo.running.first || abort("No running instances")
-
-		puts "---> Setting #{inst[:hostname]} to be #{role}"
-		sumo.ssh(inst[:hostname], "cd chef-cookbooks && /var/lib/gems/1.8/bin/chef-solo -j roles/#{role}.json")
+		task "Setup #{role}" do
+			sumo.setup_role(inst[:hostname], role)
+		end
 	end
 
 	desc "list", "list running instances"

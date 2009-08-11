@@ -91,10 +91,32 @@ class Sumo
 		end
 	end
 
-	def ssh(hostname, cmd)
-		puts "$ #{cmd}"
-		IO.popen("ssh -i #{keypair_file} root@#{hostname} 2>&1", "w") do |pipe|
-			pipe.puts cmd
+	def bootstrap_chef(hostname)
+		commands = [
+			'apt-get update',
+			'apt-get autoremove -y',
+			'apt-get install -y ruby ruby-dev rubygems git-core',
+			'gem sources -a http://gems.opscode.com',
+			'gem install chef ohai --no-rdoc --no-ri',
+			"git clone #{config['cookbooks_url']}",
+		]
+		ssh(hostname, commands)
+	end
+
+	def setup_role(hostname, role)
+		commands = [
+			"cd chef-cookbooks",
+			"/var/lib/gems/1.8/bin/chef-solo -c config.json -j roles/#{role}.json"
+		]
+		ssh(hostname, commands)
+	end
+
+	def ssh(hostname, cmds)
+		IO.popen("ssh -i #{keypair_file} root@#{hostname} > ~/.sumo/ssh.log 2>&1", "w") do |pipe|
+			pipe.puts cmds.join(' && ')
+		end
+		unless $?.success?
+			abort "failed\nCheck ~/.sumo/ssh.log for the output"
 		end
 	end
 
