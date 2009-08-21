@@ -17,7 +17,26 @@ Later...
     $ sumo terminate
     ec2-67-202-17-178.compute-1.amazonaws.com scheduled for termination
 
-You can also manage multiple instances via "sumo list" and specifying hostname or instance id as arguments to the launch, ssh, and terminate commands.
+You can manage multiple instances via "sumo list" and specifying hostname or instance id as arguments to the ssh or terminate commands.
+
+== Service installation with Chef
+
+The launch command takes an argument, which is a server role (from roles/#{role}.json inside your cookbooks repo):
+
+    $ sumo launch redis
+    ---> Launch instance...       i-b96c73d0 (1.3s)
+    ---> Acquire hostname...      ec2-75-101-191-220.compute-1.amazonaws.com (36.1s)
+    ---> Wait for ssh...          done (9.0s)
+    ---> Bootstrap chef...        done (61.3s)
+    ---> Setup redis...           done (11.9s)
+    ---> Opening firewall...      ports 6379 (5.2s)
+
+    Your instance is exporting the following resources:
+      Redis: redis://:8452cdd98f428c972f08@ec2-75-101-191-220.compute-1.amazonaws.com:6379/0
+
+The instance can assume multiple roles if you like:
+
+    $ sumo launch redis,solr,couchdb
 
 == Setup
 
@@ -31,6 +50,7 @@ Then create ~/.sumo/config.yml containing:
     access_id: <your amazon access key id>
     access_secret: <your amazon secret access key>
     ami: ami-ed46a784
+    cookbooks_url: git://github.com/adamwiggins/chef-cookbooks.git
 
 If you run any production machines from your EC2 account, I recommend setting up a separate account for use with Sumo.  It does not prompt for confirmation when terminating an instance or differentiate between instances started by it vs. instances started by other tools.
 
@@ -39,6 +59,8 @@ If you run any production machines from your EC2 account, I recommend setting up
 Launch, ssh to, and terminate instances.
 
 Sumo creates its own keypair named sumo, which is stored in ~/.ssh/keypair.pem.  Amazon doesn't let you upload your own ssh public key, which is lame, so this is the best option for making the launch-and-connect process a single step.
+
+It will also create an Amazon security group called sumo, so that it can lower the firewall for services you configure via cookbook roles.
 
 == Anti-features
 
