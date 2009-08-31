@@ -1,4 +1,4 @@
-require 'ec2'
+require 'AWS'
 require 'yaml'
 require 'socket'
 
@@ -172,7 +172,7 @@ class Sumo
 
 	def create_security_group
 		ec2.create_security_group(:group_name => 'sumo', :group_description => 'Sumo')
-	rescue EC2::InvalidGroupDuplicate
+	rescue AWS::EC2::InvalidGroupDuplicate
 	end
 
 	def open_firewall(port)
@@ -183,10 +183,10 @@ class Sumo
 			:to_port => port,
 			:cidr_ip => '0.0.0.0/0'
 		)
-	rescue EC2::InvalidPermissionDuplicate
+	rescue AWS::EC2::InvalidPermissionDuplicate
 	end
 
 	def ec2
-		@ec2 ||= EC2::Base.new(:access_key_id => config['access_id'], :secret_access_key => config['access_secret'])
+		@ec2 ||= AWS::EC2::Base.new(:access_key_id => config['access_id'], :secret_access_key => config['access_secret'])
 	end
 end
