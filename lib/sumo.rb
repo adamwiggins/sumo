@@ -172,7 +172,7 @@ class Sumo
 
 	def create_security_group
 		ec2.create_security_group(:group_name => 'sumo', :group_description => 'Sumo')
-	rescue AWS::EC2::InvalidGroupDuplicate
+	rescue AWS::InvalidGroupDuplicate
 	end
 
 	def open_firewall(port)
@@ -183,7 +183,7 @@ class Sumo
 			:to_port => port,
 			:cidr_ip => '0.0.0.0/0'
 		)
-	rescue AWS::EC2::InvalidPermissionDuplicate
+	rescue AWS::InvalidPermissionDuplicate
 	end
 
 	def ec2
