@@ -116,7 +116,7 @@ class Sumo
 	end
 
 	def ssh(hostname, cmds)
-		IO.popen("ssh -i #{keypair_file} root@#{hostname} > ~/.sumo/ssh.log 2>&1", "w") do |pipe|
+		IO.popen("ssh -i #{keypair_file} #{config['user']}@#{hostname} > ~/.sumo/ssh.log 2>&1", "w") do |pipe|
 			pipe.puts cmds.join(' && ')
 		end
 		unless $?.success?
@@ -130,7 +130,7 @@ class Sumo
 	end
 
 	def fetch_resources(hostname)
-		cmd = "ssh -i #{keypair_file} root@#{hostname} 'cat /root/resources' 2>&1"
+		cmd = "ssh -i #{keypair_file} #{config['user']}@#{hostname} 'cat /root/resources' 2>&1"
 		out = IO.popen(cmd, 'r') { |pipe| pipe.read }
 		abort "failed to read resources, output:\n#{out}" unless $?.success?
 		parse_resources(out, hostname)

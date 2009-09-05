@@ -95,6 +95,10 @@ class CLI < Thor
 			@sumo ||= Sumo.new
 		end
 
+		def config
+			sumo.config
+		end
+
 		def task(msg, &block)
 			printf "---> %-24s ", "#{msg}..."
 			start = Time.now
@@ -107,8 +111,7 @@ class CLI < Thor
 
 		def connect_ssh(hostname)
 			sumo.wait_for_ssh(hostname)
-
-			system "ssh -i #{sumo.keypair_file} root@#{hostname}"
+			system "ssh -i #{sumo.keypair_file} #{config['user']}@#{hostname}"
 			if $?.success?
 				puts "\nType 'sumo terminate' if you're done with this instance."
 			end
