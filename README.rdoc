@@ -58,6 +58,8 @@ Optional config you can include in config.yml:
 
 If you run any production machines from your EC2 account, I recommend setting up a separate account for use with Sumo.  It does not prompt for confirmation when terminating an instance or differentiate between instances started by it vs. instances started by other tools.
 
+You'll need Bacon and Mocha if you want to run the specs, and Jewler if you want to create gems.
+
 == Features
 
 Launch, ssh to, and terminate instances.

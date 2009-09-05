@@ -14,3 +14,10 @@ end
 
 Jeweler::RubyforgeTasks.new
 
+desc 'Run specs'
+task :spec do
+	sh 'bacon -s spec/*_spec.rb'
+end
+
+task :default => :spec
+
