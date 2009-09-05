@@ -147,7 +147,11 @@ class Sumo
 	end
 
 	def config
-		@config ||= read_config
+		@config ||= default_config.merge read_config
+	end
+
+	def default_config
+		{ 'user' => 'root', 'ami' => 'ami-ed46a784' }
 	end
 
 	def sumo_dir
