@@ -49,6 +49,10 @@ Then create ~/.sumo/config.yml containing:
     ---
     access_id: <your amazon access key id>
     access_secret: <your amazon secret access key>
+
+Optional config you can include in config.yml:
+
+    user: root
     ami: ami-ed46a784
     cookbooks_url: git://github.com/adamwiggins/chef-cookbooks.git
 
@@ -74,6 +78,8 @@ Sumo is not a cloud management tool, a monitor tool, or anything more than a way
 == Meta
 
 Created by Adam Wiggins
+
+Patches contributed by Blake Mizerany and Jesse Newland
 
 Released under the MIT License: http://www.opensource.org/licenses/mit-license.php
 
