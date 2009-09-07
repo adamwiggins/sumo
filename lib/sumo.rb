@@ -16,8 +16,8 @@ class Sumo
 			:image_id => ami,
 			:instance_type => config['instance_size'] || 'm1.small',
 			:key_name => 'sumo',
-			:group_id => [ 'sumo' ]
-			:availability_zone => config['availability_zone'] || 'us-east-1b',
+			:group_id => [ 'sumo' ],
+			:availability_zone => config['availability_zone'],
 		)
 		result.instancesSet.item[0].instanceId
 	end
@@ -28,7 +28,8 @@ class Sumo
 
 	def volumes
 		result = ec2.describe_volumes
-		result["volumeSet"]["item"]
+		return [] unless result.volumeSet
+		result.volumeSet.item
 	end
 
 	def attach(volume, instance, device)
@@ -41,10 +42,7 @@ class Sumo
 	end
 
 	def detach(volume)
-		result = ec2.detach_volume(
-			:volume_id => volume,
-			:force => "true"
-		)
+		result = ec2.detach_volume(:volume_id => volume, :force => "true")
 		"done"
 	end
 
@@ -56,10 +54,9 @@ class Sumo
 		result["volumeId"]
 	end
 
-	def delete_volume(volume)
-		result = ec2.delete_volume(
-			:volume_id => volume
-		)
+	def destroy_volume(volume)
+		ec2.delete_volume(:volume_id => volume)
+		"done"
 	end
 
 	def fetch_list
@@ -192,7 +189,11 @@ class Sumo
 	end
 
 	def default_config
-		{ 'user' => 'root', 'ami' => 'ami-ed46a784' }
+		{
+			'user' => 'root',
+			'ami' => 'ami-ed46a784',
+			'availability_zone' => 'us-east-1b',
+		}
 	end
 
 	def sumo_dir

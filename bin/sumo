@@ -19,7 +19,7 @@ class CLI < Thor
 
 			resources = sumo.resources(host)
 			unless resources.empty?
-				task("Opening firewall") do
+				task("Open firewall") do
 					ports = resources.map { |r| r.match(/:(\d+)\//)[1] }
 					ports.each { |port| sumo.open_firewall(port) }
 					"ports " + ports.join(", ")
@@ -98,8 +98,8 @@ class CLI < Thor
 	end
 
 	desc "volumes", "list all volumes"
-	def volumes()
-	  sumo.volumes.each do |volume|
+	def volumes
+		sumo.volumes.each do |volume|
 			id = volume["volumeId"]
 			size = volume["size"]
 			status = volume["status"]
@@ -109,24 +109,28 @@ class CLI < Thor
 		end
 	end
 
-	desc "create_volume [<megabytes>]", "creates an ec2 volume of the specified size"
+	desc "create_volume [<megabytes>]", "creates a volume of the specified size"
 	def create_volume(size="5")
-		id = task("Create a #{size}MB volume") { sumo.create_volume(size) }
+		task("Create #{size}MB volume") { sumo.create_volume(size) }
 	end
 
-	desc "delete_volume <volume_id>", "deletes an ec2 volume"
-	def delete_volume(volume)
-		id = task("Deleting volume") { sumo.delete_volume(volume) }
+	desc "destroy_volume <volume_id>", "destroys the specified volume"
+	def destroy_volume(volume)
+		task("Destroy volume") { sumo.destroy_volume(volume) }
 	end
 
-	desc "attach <volume_id> <instance_id> <device>", "attaches volume to instance as device"
-	def attach(volume, instance, device)
-		task("Attaching #{volume} to #{instance} as #{device}") { sumo.attach(volume, instance, device) }
+	desc "attach <volume_id> [<instance_id or hostname>] [<device>]", "attaches volume to instance as device"
+	def attach(volume, inst_id=nil, device=nil)
+		inst_id = (sumo.find(inst_id) || sumo.running.first || abort("No running instances"))[:instance_id]
+		device ||= '/dev/sdc1'
+		task("Attach #{volume} to #{inst_id} as #{device}") do
+			sumo.attach(volume, inst_id, device)
+		end
 	end
 
 	desc "detach <volume_id>", "detaches volume from instance"
 	def detach(volume)
-		task("Detaching #{volume}") { sumo.detach(volume).inspect }
+		task("Detach #{volume}") { sumo.detach(volume).inspect }
 	end
 
 	no_tasks do
