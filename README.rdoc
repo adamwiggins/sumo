@@ -50,23 +50,56 @@ Then create ~/.sumo/config.yml containing:
     access_id: <your amazon access key id>
     access_secret: <your amazon secret access key>
 
-Optional config you can include in config.yml:
+Optional config you can include any of the following in your config.yml:
 
     user: root
     ami: ami-ed46a784
+     availability_zone: us-east-1b
     cookbooks_url: git://github.com/adamwiggins/chef-cookbooks.git
-
-If you run any production machines from your EC2 account, I recommend setting up a separate account for use with Sumo.  It does not prompt for confirmation when terminating an instance or differentiate between instances started by it vs. instances started by other tools.
 
 You'll need Bacon and Mocha if you want to run the specs, and Jewler if you want to create gems.
 
-== Features
+== Managing volumes
 
-Launch, ssh to, and terminate instances.
+Create and attach a volume to your running instance:
+
+   $ sumo create_volume
+   ---> Create 5MB volume...     vol-8a9c6ae3 (1.1s)
+   $ sumo volumes
+   vol-8a9c6ae3    5MB  available
+   $ sumo attach
+   ---> Attach vol-8a9c6ae3 to i-bc32cbd4 as /dev/sdc1... done (0.6s)
+
+Log in to format and mount the volume:
+
+   $ sumo ssh
+   root@ip-10-251-122-175:~# mkfs.ext3 /dev/sdc1
+   mke2fs 1.41.4 (27-Jan-2009)
+   Filesystem label=
+   OS type: Linux
+   Block size=4096 (log=2)
+   ...
+   $ mkdir /myvol
+   $ mount /dev/sdc1 /myvol
+   $ echo "I'm going to persist to a volume" > /myvol/hello.txt
+
+To detach from a running instance (perhaps so you can attach elsewhere):
+
+   $ sumo detatch
+   ---> Detach vol-8a9c6ae3...   done (0.6s)
+
+Destroy it if you no longer want the data stored on it:
+
+   $ sumo destroy_volume
+   ---> Destroy volume...        done (0.8s)
+
+== Some details you might want to know
 
 Sumo creates its own keypair named sumo, which is stored in ~/.ssh/keypair.pem.  Amazon doesn't let you upload your own ssh public key, which is lame, so this is the best option for making the launch-and-connect process a single step.
 
 It will also create an Amazon security group called sumo, so that it can lower the firewall for services you configure via cookbook roles.
+
+If you run any production machines from your EC2 account, I recommend setting up a separate account for use with Sumo.  It does not prompt for confirmation when terminating an instance or differentiate between instances started by it vs. instances started by other tools.
 
 == Anti-features
 
@@ -81,7 +114,7 @@ Sumo is not a cloud management tool, a monitor tool, or anything more than a way
 
 Created by Adam Wiggins
 
-Patches contributed by Blake Mizerany and Jesse Newland
+Patches contributed by Orion Henry, Blake Mizerany, and Jesse Newland
 
 Released under the MIT License: http://www.opensource.org/licenses/mit-license.php
 
