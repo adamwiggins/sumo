@@ -17,12 +17,49 @@ class Sumo
 			:instance_type => config['instance_size'] || 'm1.small',
 			:key_name => 'sumo',
 			:group_id => [ 'sumo' ]
+			:availability_zone => config['availability_zone'] || 'us-east-1b',
 		)
 		result.instancesSet.item[0].instanceId
 	end
 
 	def list
 		@list ||= fetch_list
+	end
+
+	def volumes
+		result = ec2.describe_volumes
+		result["volumeSet"]["item"]
+	end
+
+	def attach(volume, instance, device)
+		result = ec2.attach_volume(
+			:volume_id => volume,
+			:instance_id => instance,
+			:device => device
+		)
+		"done"
+	end
+
+	def detach(volume)
+		result = ec2.detach_volume(
+			:volume_id => volume,
+			:force => "true"
+		)
+		"done"
+	end
+
+	def create_volume(size)
+		result = ec2.create_volume(
+			:availability_zone => config['availability_zone'] || 'us-east-1b',
+			:size => size
+		)
+		result["volumeId"]
+	end
+
+	def delete_volume(volume)
+		result = ec2.delete_volume(
+			:volume_id => volume
+		)
 	end
 
 	def fetch_list
@@ -144,6 +181,10 @@ class Sumo
 
 	def terminate(instance_id)
 		ec2.terminate_instances(:instance_id => [ instance_id ])
+	end
+
+	def console_output(instance_id)
+		ec2.get_console_output(:instance_id => instance_id)["output"]
 	end
 
 	def config

@@ -72,6 +72,13 @@ class CLI < Thor
 		end
 	end
 
+	desc "console [<instance_id or hostname>]", "get console output for instance or first available"
+	def console(id=nil)
+		inst = sumo.find(id) || (sumo.running | sumo.pending).first || abort("No running or pending instances")
+
+		puts sumo.console_output(inst[:instance_id]).inspect
+	end
+
 	desc "terminate [<instance_id or hostname>]", "terminate specified instance or first available"
 	def terminate(id=nil)
 		inst = sumo.find(id) || (sumo.running | sumo.pending).first || abort("No running or pending instances")
@@ -88,6 +95,38 @@ class CLI < Thor
 			sumo.terminate(inst[:instance_id])
 			puts "#{inst[:hostname] || inst[:instance_id]} scheduled for termination"
 		end
+	end
+
+	desc "volumes", "list all volumes"
+	def volumes()
+	  sumo.volumes.each do |volume|
+			id = volume["volumeId"]
+			size = volume["size"]
+			status = volume["status"]
+			device = volume["attachmentSet"]["item"].first["device"] rescue ""
+			instance = volume["attachmentSet"]["item"].first["instanceId"] rescue ""
+			printf "%-10s %4s %10s %15s %15s\n", id, size, status, instance, device
+		end
+	end
+
+	desc "create_volume [<megabytes>]", "creates an ec2 volume of the specified size"
+	def create_volume(size="5")
+		id = task("Create a #{size}MB volume") { sumo.create_volume(size) }
+	end
+
+	desc "delete_volume <volume_id>", "deletes an ec2 volume"
+	def delete_volume(volume)
+		id = task("Deleting volume") { sumo.delete_volume(volume) }
+	end
+
+	desc "attach <volume_id> <instance_id> <device>", "attaches volume to instance as device"
+	def attach(volume, instance, device)
+		task("Attaching #{volume} to #{instance} as #{device}") { sumo.attach(volume, instance, device) }
+	end
+
+	desc "detach <volume_id>", "detaches volume from instance"
+	def detach(volume)
+		task("Detaching #{volume}") { sumo.detach(volume).inspect }
 	end
 
 	no_tasks do
