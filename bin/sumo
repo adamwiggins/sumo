@@ -99,38 +99,36 @@ class CLI < Thor
 
 	desc "volumes", "list all volumes"
 	def volumes
-		sumo.volumes.each do |volume|
-			id = volume["volumeId"]
-			size = volume["size"]
-			status = volume["status"]
-			device = volume["attachmentSet"]["item"].first["device"] rescue ""
-			instance = volume["attachmentSet"]["item"].first["instanceId"] rescue ""
-			printf "%-10s %4s %10s %15s %15s\n", id, size, status, instance, device
+		sumo.volumes.each do |v|
+			printf "%-10s %4sMB %10s %15s %15s\n", v[:volume_id], v[:size], v[:status], v[:instance], v[:device]
 		end
 	end
 
-	desc "create_volume [<megabytes>]", "creates a volume of the specified size"
-	def create_volume(size="5")
+	desc "create_volume [<megabytes>]", "create a volume"
+	def create_volume(size=5)
 		task("Create #{size}MB volume") { sumo.create_volume(size) }
 	end
 
-	desc "destroy_volume <volume_id>", "destroys the specified volume"
-	def destroy_volume(volume)
-		task("Destroy volume") { sumo.destroy_volume(volume) }
+	desc "destroy_volume [<volume_id>]", "destroy a volume"
+	def destroy_volume(volume=nil)
+		vol_id = (sumo.find_volume(volume) || sumo.nondestroyed_volumes.first || abort("No volumes"))[:volume_id]
+		task("Destroy volume") { sumo.destroy_volume(vol_id) }
 	end
 
-	desc "attach <volume_id> [<instance_id or hostname>] [<device>]", "attaches volume to instance as device"
-	def attach(volume, inst_id=nil, device=nil)
+	desc "attach [<volume_id>] [<instance_id or hostname>] [<device>]", "attach volume to running instance"
+	def attach(volume=nil, inst_id=nil, device=nil)
+		vol_id = (sumo.find_volume(volume) || sumo.available_volumes.first || abort("No available volumes"))[:volume_id]
 		inst_id = (sumo.find(inst_id) || sumo.running.first || abort("No running instances"))[:instance_id]
 		device ||= '/dev/sdc1'
-		task("Attach #{volume} to #{inst_id} as #{device}") do
-			sumo.attach(volume, inst_id, device)
+		task("Attach #{vol_id} to #{inst_id} as #{device}") do
+			sumo.attach(vol_id, inst_id, device)
 		end
 	end
 
-	desc "detach <volume_id>", "detaches volume from instance"
-	def detach(volume)
-		task("Detach #{volume}") { sumo.detach(volume).inspect }
+	desc "detach [<volume_id>]", "detach volume from instance"
+	def detach(volume=nil)
+		vol_id = (sumo.find_volume(volume) || sumo.attached_volumes.first || abort("No attached volumes"))[:volume_id]
+		task("Detach #{vol_id}") { sumo.detach(vol_id) }
 	end
 
 	no_tasks do

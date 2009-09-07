@@ -29,7 +29,28 @@ class Sumo
 	def volumes
 		result = ec2.describe_volumes
 		return [] unless result.volumeSet
-		result.volumeSet.item
+
+		result.volumeSet.item.map do |row|
+			{
+				:volume_id => row["volumeId"],
+				:size => row["size"],
+				:status => row["status"],
+				:device => (row["attachmentSet"]["item"].first["device"] rescue ""),
+				:instance_id => (row["attachmentSet"]["item"].first["instanceId"] rescue ""),
+			}
+		end
+	end
+
+	def available_volumes
+		volumes.select { |vol| vol[:status] == 'available' }
+	end
+
+	def attached_volumes
+		volumes.select { |vol| vol[:status] == 'in-use' }
+	end
+
+	def nondestroyed_volumes
+		volumes.select { |vol| vol[:status] != 'deleting' }
 	end
 
 	def attach(volume, instance, device)
@@ -48,8 +69,8 @@ class Sumo
 
 	def create_volume(size)
 		result = ec2.create_volume(
-			:availability_zone => config['availability_zone'] || 'us-east-1b',
-			:size => size
+			:availability_zone => config['availability_zone'],
+			:size => size.to_s
 		)
 		result["volumeId"]
 	end
@@ -83,6 +104,15 @@ class Sumo
 			inst[:hostname] == id_or_hostname or
 			inst[:instance_id] == id_or_hostname or
 			inst[:instance_id].gsub(/^i-/, '') == id_or_hostname
+		end
+	end
+
+	def find_volume(volume_id)
+		return unless volume_id
+		volume_id = volume_id.strip.downcase
+		volumes.detect do |volume|
+			inst[:volume_id] == volume_id or
+			inst[:volume_id].gsub(/^vol-/, '') == volume_id
 		end
 	end
 
