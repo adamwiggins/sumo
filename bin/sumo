@@ -100,13 +100,13 @@ class CLI < Thor
 	desc "volumes", "list all volumes"
 	def volumes
 		sumo.volumes.each do |v|
-			printf "%-10s %4sMB %10s %15s %15s\n", v[:volume_id], v[:size], v[:status], v[:instance], v[:device]
+			printf "%-10s %4sGB %10s %15s %15s\n", v[:volume_id], v[:size], v[:status], v[:instance], v[:device]
 		end
 	end
 
 	desc "create_volume [<megabytes>]", "create a volume"
 	def create_volume(size=5)
-		task("Create #{size}MB volume") { sumo.create_volume(size) }
+		task("Create #{size}GB volume") { sumo.create_volume(size) }
 	end
 
 	desc "destroy_volume [<volume_id>]", "destroy a volume"
