@@ -111,8 +111,8 @@ class Sumo
 		return unless volume_id
 		volume_id = volume_id.strip.downcase
 		volumes.detect do |volume|
-			inst[:volume_id] == volume_id or
-			inst[:volume_id].gsub(/^vol-/, '') == volume_id
+			volume[:volume_id] == volume_id or
+			volume[:volume_id].gsub(/^vol-/, '') == volume_id
 		end
 	end
 
