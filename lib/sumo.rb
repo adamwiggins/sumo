@@ -17,7 +17,7 @@ class Sumo
 			:instance_type => config['instance_size'] || 'm1.small',
 			:key_name => 'sumo',
 			:group_id => [ 'sumo' ],
-			:availability_zone => config['availability_zone'],
+			:availability_zone => config['availability_zone']
 		)
 		result.instancesSet.item[0].instanceId
 	end
@@ -222,7 +222,7 @@ class Sumo
 		{
 			'user' => 'root',
 			'ami' => 'ami-ed46a784',
-			'availability_zone' => 'us-east-1b',
+			'availability_zone' => 'us-east-1b'
 		}
 	end
 
