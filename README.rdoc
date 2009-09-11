@@ -114,7 +114,7 @@ Sumo is not a cloud management tool, a monitor tool, or anything more than a way
 
 Created by Adam Wiggins
 
-Patches contributed by Orion Henry, Blake Mizerany, and Jesse Newland
+Patches contributed by Orion Henry, Blake Mizerany, Jesse Newland, and Gert Goet
 
 Released under the MIT License: http://www.opensource.org/licenses/mit-license.php
 
