@@ -10,6 +10,8 @@ Jeweler::Tasks.new do |s|
 	s.rubyforge_project = "sumo"
 	s.files = FileList["[A-Z]*", "{bin,lib,spec}/**/*"]
 	s.executables = %w(sumo)
+	s.add_dependency "amazon-ec2"
+	s.add_dependency "thor"
 end
 
 Jeweler::RubyforgeTasks.new
