@@ -2,6 +2,7 @@
 
 require File.dirname(__FILE__) + '/../lib/sumo'
 
+require 'rubygems'
 require 'thor'
 
 class CLI < Thor
