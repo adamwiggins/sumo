@@ -263,6 +263,16 @@ class Sumo
 	end
 
 	def ec2
-		@ec2 ||= AWS::EC2::Base.new(:access_key_id => config['access_id'], :secret_access_key => config['access_secret'])
+    @ec2 ||= AWS::EC2::Base.new(
+      :access_key_id => config['access_id'], 
+      :secret_access_key => config['access_secret'], 
+      :server => server
+    )
 	end
+	
+	def server
+	  zone = config['availability_zone']
+	  host = zone.slice(0, zone.length - 1)
+	  "#{host}.ec2.amazonaws.com"
+  end
 end
