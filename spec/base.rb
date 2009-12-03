@@ -1,4 +1,4 @@
-require File.dirname(__FILE__) + '/../lib/sumo'
+require File.dirname(__FILE__) + '/../lib/all'
 
 require 'bacon'
 require 'mocha/standalone'

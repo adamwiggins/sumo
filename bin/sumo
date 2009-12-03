@@ -1,166 +1,223 @@
 #!/usr/bin/env ruby
 
-require 'rubygems'
-require File.dirname(__FILE__) + '/../lib/sumo'
+require File.dirname(__FILE__) + '/../lib/all'
+
+Sumo::Config.connect
 
 require 'thor'
 
 class CLI < Thor
-	desc "launch [<role>]", "launch an instance as role, or omit to ssh to vanilla instance"
-	def launch(role=nil)
-		id = task("Launch instance") { sumo.launch }
-		host = task("Acquire hostname") { sumo.wait_for_hostname(id) }
-		task("Wait for ssh") { sumo.wait_for_ssh(host) }
+	desc "launch [NAMES]", "launch one or more instances"
+	def launch(*names)
+    Sumo::Instance.search(*names).each do |inst|
+      task("Launch instance #{inst.name}")   { inst.start }
+      task("Acquire hostname")               { inst.wait_for_hostname }
+      task("Wait for ssh")                   { inst.wait_for_ssh }
+      task("Attaching ip")                   { inst.attach_ip } if inst.elastic_ip
+      task("Attaching volumes")              { inst.attach_volumes } if inst.has_volumes?
 
-		if role
-			task("Bootstrap chef") { sumo.bootstrap_chef(host) }
-			role.split(',').each do |role|
-				task("Setup #{role}") { sumo.setup_role(host, role) }
-			end
-
-			resources = sumo.resources(host)
-			unless resources.empty?
-				task("Open firewall") do
-					ports = resources.map { |r| r.match(/:(\d+)\//)[1] }
-					ports.each { |port| sumo.open_firewall(port) }
-					"ports " + ports.join(", ")
-				end
-			end
-
-			puts
-			display_resources(host)
-		else
-			puts "\nLogging you in via ssh.  Type 'exit' or Ctrl-D to return to your local system."
-			puts '-' * 78
-			connect_ssh(host)
+      if inst.has_roles?
+        task("Bootstrap chef") { inst.bootstrap_chef }
+        inst.roles.each do |role|
+          task("Setup #{role}") { inst.setup_role(role) }
+        end
+        puts
+        display_resources(inst)
+      end
 		end
 	end
 
-	desc "ssh [<instance_id or hostname>]", "ssh to a specified instance or first available"
-	def ssh(id=nil)
-		inst = sumo.find(id) || sumo.running.first || abort("No running instances")
-		hostname = inst[:hostname] || wait_for_hostname(inst[:instance_id])
-		connect_ssh hostname
+	desc "ssh [NAMES]", "ssh to a specified instance or first available"
+	def ssh(*names)
+    Sumo::Instance.search(*names).each do |inst|
+      inst.refresh
+      if inst.running?
+        inst.wait_for_ssh
+        inst.connect_ssh
+      else
+        puts "Instance #{inst.name} not running"
+      end
+    end
 	end
 
-	desc "resources [<instance_id or hostname>]", "show resources exported by an instance"
-	def resources(id=nil)
-		inst = sumo.find(id) || sumo.running.first || abort("No running instances")
-		hostname = inst[:hostname] || wait_for_hostname(inst[:instance_id])
-		display_resources(inst[:hostname])
+	desc "resources [NAME]", "show resources exported by an instance"
+	def resources(*names)
+    Sumo::Instance.search(*names).each do |inst|
+      inst.wait_for_ssh
+      display_resources(inst)
+    end
 	end
 
-	desc "bootstrap", "bootstrap chef and cookbooks"
-	def bootstrap(id=nil)
-		inst = sumo.find(id) || sumo.running.first || abort("No running instances")
-		task "Bootstrap chef" do
-			sumo.bootstrap_chef(inst[:hostname])
-		end
+	desc "create NAME --opt1=value1 --opt2=value2", "create a persistent instance"
+  Sumo::Instance.attrs.each do |a|
+    method_option a, :type => :string, :default => nil, :required => false
+  end
+	def create(name)
+    inst = Sumo::Instance.find_by_name(name)
+    abort("Already a server by that name") unless inst.nil?
+    Sumo::Instance.create options.merge(:name => name)
+  end
+
+	desc "restart [NAME]", "start a persistent instance"
+	def restart(*names)
+    Sumo::Instance.search(*names).each do |inst|
+      task("Stopping instance #{inst.name}") { inst.terminate } if inst.running?
+      task("Starting instance #{inst.name}") { inst.start }
+    end
+  end
+
+	desc "stop [NAMES]", "stop a persistent instance"
+	def stop(*names)
+    Sumo::Instance.search(*names).each do |inst|
+      if inst.running?
+        task("Stopping instance #{inst.name}") { inst.terminate } if inst.running?
+      else
+        puts "Instance #{inst.name} not running"
+      end
+    end
+  end
+
+	desc "destroy NAME", "destroy a persistent instance"
+	def destroy(name)
+    inst = Sumo::Instance.find_by_name(name)
+    task("Stopping instance #{name}") { inst.terminate } if inst.running?
+    task("Destroying instance #{name}") { inst.destroy }
+  end
+
+	desc "bootstrap [name]", "bootstrap chef and cookbooks"
+	def bootstrap(name=nil)
+    inst = find_instance(name)
+		task("Bootstrap chef") { inst.bootstrap_chef }
 	end
 
-	desc "role", "setup instance as a role"
-	def role(role, id=nil)
-		inst = sumo.find(id) || sumo.running.first || abort("No running instances")
+	desc "role ROLE [NAME]", "setup instance as a role"
+	def role(role, name=nil)
+    inst = find_instance(name)
+    ## FIXME should record this
 		task "Setup #{role}" do
-			sumo.setup_role(inst[:hostname], role)
+			inst.setup_role
 		end
 	end
 
-	desc "list", "list running instances"
-	def list
-		sumo.list.each do |inst|
-			printf "%-50s %-12s %s\n", inst[:hostname], inst[:instance_id], inst[:status]
-		end
+	desc "set [NAMES] --opt1=value1 --opt2=value2", "set config var for an instance"
+  Sumo::Instance.attrs.each do |a|
+    method_option a, :type => :string, :default => nil, :required => false
+  end
+  def set(*names)
+    Sumo::Instance.search(*names).each do |inst|
+      inst.update_attributes!(options)
+    end
+  end
+    
+	desc "info [NAMES]", "show instance config"
+	def info(*names)
+    Sumo::Instance.search(*names).each do |inst|
+      puts "#{inst.name}:"
+      inst.to_hash.each do |key,value|
+        puts "  #{key.to_s}:#{value.to_s.inspect}"
+      end
+    end
+  end
+
+	desc "list [<NAMES>]", "list all instances"
+	def list(*names)
+    names = ["%"] if names.empty? ## search for all by defaul
+    Sumo::Instance.search(*names).each do |i|
+			printf "%-10s %-12s %-10s %-10s %-15s %-10s %s\n", i.name, i.instance_id, i.instance_type, i.ami, i.hostname, i.ec2_state, i.volumes_json
+    end
 	end
 
-	desc "console [<instance_id or hostname>]", "get console output for instance or first available"
-	def console(id=nil)
-		inst = sumo.find(id) || (sumo.running | sumo.pending).first || abort("No running or pending instances")
-
-		puts sumo.console_output(inst[:instance_id]).inspect
-	end
-
-	desc "terminate [<instance_id or hostname>]", "terminate specified instance or first available"
-	def terminate(id=nil)
-		inst = sumo.find(id) || (sumo.running | sumo.pending).first || abort("No running or pending instances")
-
-		sumo.terminate(inst[:instance_id])
-		puts "#{inst[:hostname] || inst[:instance_id]} scheduled for termination"
-	end
-
-	desc "terminate_all", "terminate all instances"
-	def terminate_all
-		instances = (sumo.running | sumo.pending)
-		abort("No running or pending instances") if instances.empty?
-		instances.each do |inst|
-			sumo.terminate(inst[:instance_id])
-			puts "#{inst[:hostname] || inst[:instance_id]} scheduled for termination"
-		end
+	desc "console [NAME]", "get console output for instance or first available"
+	def console(*names)
+    Sumo::Instance.search(*names).each do |inst|
+		  puts inst.console_output if inst.running?
+    end
 	end
 
 	desc "volumes", "list all volumes"
 	def volumes
-		sumo.volumes.each do |v|
-			printf "%-10s %4sGB %10s %15s %15s\n", v[:volume_id], v[:size], v[:status], v[:instance], v[:device]
+    Sumo::Config.ec2.describe_volumes.each do |volume|
+			printf "%-10s %-10s %-10s %-10s %-10s\n", volume[:aws_id], volume[:aws_size], volume[:aws_status], volume[:aws_device], instance_id_to_sumo(volume[:aws_instance_id])
 		end
 	end
 
-	desc "create_volume [<megabytes>]", "create a volume"
-	def create_volume(size=5)
-		task("Create #{size}GB volume") { sumo.create_volume(size) }
-	end
-
-	desc "destroy_volume [<volume_id>]", "destroy a volume"
-	def destroy_volume(volume=nil)
-		vol_id = (sumo.find_volume(volume) || sumo.nondestroyed_volumes.first || abort("No volumes"))[:volume_id]
-		task("Destroy volume") { sumo.destroy_volume(vol_id) }
-	end
-
-	desc "attach [<volume_id>] [<instance_id or hostname>] [<device>]", "attach volume to running instance"
-	def attach(volume=nil, inst_id=nil, device=nil)
-		vol_id = (sumo.find_volume(volume) || sumo.available_volumes.first || abort("No available volumes"))[:volume_id]
-		inst_id = (sumo.find(inst_id) || sumo.running.first || abort("No running instances"))[:instance_id]
-		device ||= '/dev/sdc1'
-		task("Attach #{vol_id} to #{inst_id} as #{device}") do
-			sumo.attach(vol_id, inst_id, device)
+	desc "ips", "list all ips"
+	def ips
+    Sumo::Config.ec2.describe_addresses.each do |ip|
+			printf "%-10s %-10s\n", ip[:public_ip], instance_id_to_sumo(ip[:instance_id])
 		end
 	end
 
-	desc "detach [<volume_id>]", "detach volume from instance"
-	def detach(volume=nil)
-		vol_id = (sumo.find_volume(volume) || sumo.attached_volumes.first || abort("No attached volumes"))[:volume_id]
-		task("Detach #{vol_id}") { sumo.detach(vol_id) }
+  desc "attach_ip NAME [<ip>]", "attach (and create if not specified) an IP to instance"
+  def attach_ip(name, ip = nil)
+    inst = find_instance(name)
+    ip ||= Sumo::Config.ec2.allocate_address
+    inst.attach_ip(ip)
+  end
+
+	desc "attach_volume NAME (MEGABYTES | VOLUME) DEVICE", "creates an ec2 volume of the specified size"
+	def attach_volume(name, vs, device)
+    inst = find_running_instance(name)
+    vol = vs if vs =~ /^vol/
+		vol ||= task("Create a #{vs}MB volume") { Sumo::Config.ec2.create_volume(nil, vs, inst.availability_zone)[:aws_id] }
+    task("Add Volume to Instance") { inst.attach_volume(vol, device) }
+	end
+
+	desc "delete_volume VOLUME_ID", "deletes an ec2 volume"
+	def delete_volume(volume)
+    ## FIXME - should also remove it from the volumes_json
+		id = task("Deleting volume") { Sumo::Config.ec2.delete_volume(volume) }
+	end
+
+	desc "purge", "PURGE ALL DATA"
+	def purge
+    Sumo::Config.purge
+	end
+
+	desc "detach NAME VOLUME_ID", "detaches volume from instance"
+	def detach(name, volume)
+    inst = find_instance(name)
+		task("Detaching #{volume}") { Sumo::Config.ec2.detach_volume(volume) }
 	end
 
 	no_tasks do
-		def sumo
-			@sumo ||= Sumo.new
-		end
+    def find_idle_instance(name)
+      if name
+		    Sumo::Instance.find_by_name(name) || abort("No such instance")
+      else
+		    Sumo::Instance.find(:all).detect { |i| not i.running? } || abort("No idle instances")
+      end
+    end
 
-		def config
-			sumo.config
-		end
+    def find_running_instance(name)
+      if name
+		    Sumo::Instance.find_by_name(name) || abort("No such instance")
+      else
+		    Sumo::Instance.find(:all).detect { |i| i.running? } || abort("No running instances")
+      end
+    end
+
+    def find_instance(name)
+      if name
+		    Sumo::Instance.find_by_name(name) || abort("No such instances")
+      else
+		    Sumo::Instance.find(:all).first || abort("No instances")
+      end
+    end
 
 		def task(msg, &block)
 			printf "---> %-24s ", "#{msg}..."
 			start = Time.now
 			result = block.call || 'done'
+      result = "done" unless result.is_a? String
 			finish = Time.now
 			time = sprintf("%0.1f", finish - start)
 			puts "#{result} (#{time}s)"
 			result
 		end
 
-		def connect_ssh(hostname)
-			sumo.wait_for_ssh(hostname)
-			system "ssh -i #{sumo.keypair_file} #{config['user']}@#{hostname}"
-			if $?.success?
-				puts "\nType 'sumo terminate' if you're done with this instance."
-			end
-		end
-
-		def display_resources(host)
-			resources = sumo.resources(host)
+		def display_resources(inst)
+			resources = inst.fetch_resources
 			unless resources.empty?
 				puts "Your instance is exporting the following resources:"
 				resources.each do |resource|
@@ -168,6 +225,12 @@ class CLI < Thor
 				end
 			end
 		end
+
+    def instance_id_to_sumo(instance_id)
+      result = "" if instance_id.nil?
+      result ||= Sumo::Instance.all.detect { |i| i.instance_id == instance_id }
+      result ||= instance_id
+    end
 	end
 end
 
