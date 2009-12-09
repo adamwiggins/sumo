@@ -78,10 +78,11 @@ class CLI < Thor
   end
 
 	desc "destroy NAME", "destroy a persistent instance"
-	def destroy(name)
-    inst = Sumo::Instance.find_by_name(name)
-    task("Stopping instance #{name}") { inst.terminate } if inst.running?
-    task("Destroying instance #{name}") { inst.destroy }
+	def destroy(*names)
+    Sumo::Instance.search(*names).each do |inst|
+      task("Stopping instance #{inst.name}") { inst.terminate } if inst.running?
+      task("Destroying instance #{inst.name}") { inst.destroy }
+    end
   end
 
 	desc "bootstrap [name]", "bootstrap chef and cookbooks"

@@ -63,8 +63,9 @@ module Sumo
       @volumes ||= JSON.load(volumes_json) rescue {}
     end
 
-    def after_destroy
-      volumes.each { |v| Sumo::Config.ec2.delete_volume(v) }
+    def destroy
+      delete
+      volumes.each { |mount,v| Sumo::Config.ec2.delete_volume(v) }
       Sumo::Config.ec2.release_address(elastic_ip) if has_ip?
     end
 
