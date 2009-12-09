@@ -239,7 +239,6 @@ module Sumo
       ## TODO make sure its not attached to someone else
       volumes[device] = volume_id
       self[:volumes_json] = volumes.to_json
-      puts self.inspect
       save
       Config.ec2.attach_volume(volume_id, instance_id, device) if running?
     end
