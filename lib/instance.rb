@@ -30,7 +30,7 @@ module Sumo
     end
 
     def all_attrs
-      [:name, :ami32, :ami64, :instance_type, :instance_id, :state, :availability_zone, :key_name, :role_list, :security_group, :hostname, :user, :volumes_json, :elastic_ip]
+      [:name, :ami32, :ami64, :instance_type, :instance_id, :state, :availability_zone, :key_name, :role_list, :security_group, :user, :volumes_json, :elastic_ip]
     end
 
     def initialize(attrs={})
@@ -59,6 +59,7 @@ module Sumo
     end
 
     def volumes
+      ## FIXME - just use the darn simpledb array - use put/delete do avoid race conditions
       @volumes ||= JSON.load(volumes_json) rescue {}
     end
 
@@ -76,7 +77,7 @@ module Sumo
     end
 
     def ec2_instance
-      @ec2 ||= Config.ec2.describe_instances([instance_id]).first 
+      @ec2 ||= Config.ec2.describe_instances([instance_id]).first rescue {}
 #      @@ec2_list.detect { |i| i[:aws_instance_id] == instance_id }
     end
 
@@ -110,7 +111,7 @@ module Sumo
     def terminate
       Config.ec2.terminate_instances([ instance_id ])
       wait_for_termination if volumes.size > 0
-      update_attributes! :hostname => nil, :instance_id => nil
+      update_attributes! :instance_id => nil
       "#{instance_id} scheduled for termination"
     end
 
@@ -130,16 +131,16 @@ module Sumo
       not ia32?
     end
 
+    def hostname
+      ec2_instance[:dns_name] == "" ? nil : ec2_instance[:dns_name]
+    end
+
     def wait_for_hostname
       loop do
         refresh
-        if ec2_instance[:dns_name].size > 0
-          update_attributes! :hostname => ec2_instance[:dns_name]
-          break
-        end
+        return hostname if hostname
         sleep 1
       end
-      hostname
     end
 
     def wait_for_termination
@@ -222,7 +223,7 @@ module Sumo
     def attach_ip
       return unless running? and elastic_ip
       Config.ec2.associate_address(instance_id, elastic_ip)
-      update_attributes! :hostname => elastic_ip  ## TODO query EC2 to find new hostname - refresh command?
+      refresh
     end
 
     def attach_volumes
@@ -236,6 +237,8 @@ module Sumo
       abort("Instance already has a volume on that device") if volumes[device]
       ## TODO make sure its not attached to someone else
       volumes[device] = volume_id
+      self[:volumes_json] = volumes.to_json
+      puts self.inspect
       save
       Config.ec2.attach_volume(volume_id, instance_id, device) if running?
     end

@@ -123,7 +123,7 @@ class CLI < Thor
 	def list(*names)
     names = ["%"] if names.empty? ## search for all by defaul
     Sumo::Instance.search(*names).each do |i|
-			printf "%-10s %-12s %-10s %-10s %-15s %-10s %s\n", i.name, i.instance_id, i.instance_type, i.ami, i.hostname, i.ec2_state, i.volumes_json
+			printf "%-10s %-12s %-10s %-15s %-15s %-10s %s\n", i.name, i.instance_id, i.instance_type, i.ami, i.elastic_ip || i.hostname, i.ec2_state, i.volumes_json
     end
 	end
 
@@ -148,11 +148,11 @@ class CLI < Thor
 		end
 	end
 
-  desc "attach_ip NAME [<ip>]", "attach (and create if not specified) an IP to instance"
-  def attach_ip(name, ip = nil)
+  desc "attach_ip NAME", "attach (and create if not specified) an IP to instance"
+  def attach_ip(name)
     inst = find_instance(name)
-    ip ||= Sumo::Config.ec2.allocate_address
-    inst.attach_ip(ip)
+    ip = Sumo::Config.ec2.allocate_address
+    inst.add_ip(ip)
   end
 
 	desc "attach_volume NAME (MEGABYTES | VOLUME) DEVICE", "creates an ec2 volume of the specified size"
@@ -160,7 +160,7 @@ class CLI < Thor
     inst = find_running_instance(name)
     vol = vs if vs =~ /^vol/
 		vol ||= task("Create a #{vs}MB volume") { Sumo::Config.ec2.create_volume(nil, vs, inst.availability_zone)[:aws_id] }
-    task("Add Volume to Instance") { inst.attach_volume(vol, device) }
+    task("Add Volume to Instance") { inst.add_volume(vol, device) }
 	end
 
 	desc "delete_volume VOLUME_ID", "deletes an ec2 volume"
