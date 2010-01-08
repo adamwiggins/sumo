@@ -29,7 +29,7 @@ module Sumo
 		end
 
 		def all_attrs
-			[:name, :ami32, :ami64, :instance_type, :instance_id, :state, :availability_zone, :key_name, :role_list, :security_group, :user, :volumes_json, :elastic_ip, :user_data]
+			[:name, :ami32, :ami64, :instance_type, :instance_id, :state, :availability_zone, :key_name, :security_group, :user, :volumes_json, :elastic_ip, :user_data]
 		end
 
 		def initialize(attrs={})
@@ -105,7 +105,6 @@ module Sumo
 			wait_for_ssh
 			attach_ip
 			attach_volumes
-			setup_roles
 		end
 
 		def terminate
@@ -163,41 +162,6 @@ module Sumo
 			end
 		end
 
-		def bootstrap_chef
-			commands = [
-				'sudo apt-get update',
-				'sudo apt-get autoremove -y',
-				'sudo apt-get install -y ruby ruby-dev rubygems git-core',
-				'sudo gem sources -a http://gems.opscode.com',
-				'sudo gem install chef ohai --no-rdoc --no-ri',
-				"git clone #{Config.cookbooks_url}",
-			]
-			ssh(commands)
-		end
-
-		def roles
-			@roles ||= role_list.split(",") rescue []
-		end
-
-		def has_roles?
-			not roles.empty?
-		end
- 
-		def setup_roles
-			return [] unless has_roles?
-			bootstrap_chef 
-			roles.each { |r| setup_role(r) }
-			fetch_resources
-		end
-
-		def setup_role(r)
-			commands = [
-				"cd chef-cookbooks",
-				"sudo /var/lib/gems/1.8/bin/chef-solo -c config.json -j roles/#{r}.json"
-			]
-			ssh(commands)
-		end
-
 		def ssh(cmds)
 			IO.popen("ssh -i #{Config.keypair_file} #{user}@#{hostname} > ~/.sumo/ssh.log 2>&1", "w") do |pipe|
 				pipe.puts cmds.join(' && ')
@@ -205,13 +169,6 @@ module Sumo
 			unless $?.success?
 				abort "failed\nCheck ~/.sumo/ssh.log for the output"
 			end
-		end
-
-		def fetch_resources
-			cmd = "ssh -i #{Config.keypair_file} #{user}@#{hostname} 'sudo cat /root/resources' 2>&1"
-			out = IO.popen(cmd, 'r') { |pipe| pipe.read }
-			abort "failed to read resources, output:\n#{out}" unless $?.success?
-			parse_resources(out)
 		end
 
 		def add_ip(public_ip)
@@ -242,12 +199,6 @@ module Sumo
 			Config.ec2.attach_volume(volume_id, instance_id, device) if running?
 		end
  
-		def parse_resources(raw)
-			raw.split("\n").map do |line|
-				line.gsub(/localhost/, hostname)
-			end
-		end
-
 		def connect_ssh
 			system "ssh -i #{Sumo::Config.keypair_file} #{user}@#{hostname}"
 			if $?.success?
@@ -256,13 +207,12 @@ module Sumo
 		end
 		
 		def self.attrs
-			[:ami32, :ami64, :instance_type, :availability_zone, :key_name, :role_list, :security_group, :user, :user_data]
+			[:ami32, :ami64, :instance_type, :availability_zone, :key_name, :security_group, :user, :user_data]
 		end
 
 		def refresh
 			@ec2 = nil
 			@volumes = nil
-			@roles = nil
 			reload
 		end
 

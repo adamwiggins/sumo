@@ -15,10 +15,6 @@ module Sumo
 			}
 		end
 
-		def cookbooks_url
-			config["cookbooks_url"] || "git://github.com/adamwiggins/chef-cookbooks.git"
-		end
-
 		def security_group
 			config["security_group"] || "sumo"
 		end

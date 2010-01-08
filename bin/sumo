@@ -15,15 +15,6 @@ class CLI < Thor
 			task("Wait for ssh")                 { inst.wait_for_ssh }
 			task("Attaching ip")                 { inst.attach_ip } if inst.elastic_ip
 			task("Attaching volumes")            { inst.attach_volumes } if inst.has_volumes?
-
-			if inst.has_roles?
-				task("Bootstrap chef") { inst.bootstrap_chef }
-				inst.roles.each do |role|
-					task("Setup #{role}") { inst.setup_role(role) }
-				end
-				puts
-				display_resources(inst)
-			end
 		end
 	end
 
@@ -37,14 +28,6 @@ class CLI < Thor
 			else
 				puts "Instance #{inst.name} not running"
 			end
-		end
-	end
-
-	desc "resources [NAME]", "show resources exported by an instance"
-	def resources(*names)
-		Sumo::Instance.search(*names).each do |inst|
-			inst.wait_for_ssh
-			display_resources(inst)
 		end
 	end
 
@@ -82,21 +65,6 @@ class CLI < Thor
 		Sumo::Instance.search(*names).each do |inst|
 			task("Stopping instance #{inst.name}") { inst.terminate } if inst.running?
 			task("Destroying instance #{inst.name}") { inst.destroy }
-		end
-	end
-
-	desc "bootstrap [name]", "bootstrap chef and cookbooks"
-	def bootstrap(name=nil)
-		inst = find_instance(name)
-		task("Bootstrap chef") { inst.bootstrap_chef }
-	end
-
-	desc "role ROLE [NAME]", "setup instance as a role"
-	def role(role, name=nil)
-		inst = find_instance(name)
-		## FIXME should record this
-		task "Setup #{role}" do
-			inst.setup_role
 		end
 	end
 
@@ -224,16 +192,6 @@ class CLI < Thor
 			time = sprintf("%0.1f", finish - start)
 			puts "#{result} (#{time}s)"
 			result
-		end
-
-		def display_resources(inst)
-			resources = inst.fetch_resources
-			unless resources.empty?
-				puts "Your instance is exporting the following resources:"
-				resources.each do |resource|
-					puts "	#{resource}"
-				end
-			end
 		end
 
 		def instance_id_to_sumo(instance_id)
