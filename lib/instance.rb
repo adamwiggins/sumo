@@ -273,6 +273,13 @@ module Sumo
       hash
     end
 
+    def duplicate(new_name="#{name}-copy")
+      params = { :name => new_name }
+      attributes.each do |key, value|
+        params[key.to_sym] = value if self.class.attrs.include? key.to_sym
+      end
+      self.class.new params
+    end
   end
 end
 

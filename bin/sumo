@@ -181,6 +181,15 @@ class CLI < Thor
 		task("Detaching #{volume}") { Sumo::Config.ec2.detach_volume(volume) }
 	end
 
+	desc "duplicate [NAME] [NEWNAME]", "duplicate named instance to newname"
+	def duplicate(name, newname)
+		inst = Sumo::Instance.search(name).first
+		task("Duplicating #{inst}") do
+			dupe = inst.duplicate(newname)
+			dupe.save
+		end
+	end
+
 	no_tasks do
     def find_idle_instance(name)
       if name
