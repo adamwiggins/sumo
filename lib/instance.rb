@@ -30,7 +30,7 @@ module Sumo
     end
 
     def all_attrs
-      [:name, :ami32, :ami64, :instance_type, :instance_id, :state, :availability_zone, :key_name, :role_list, :security_group, :user, :volumes_json, :elastic_ip]
+      [:name, :ami32, :ami64, :instance_type, :instance_id, :state, :availability_zone, :key_name, :role_list, :security_group, :user, :volumes_json, :elastic_ip, :user_data]
     end
 
     def initialize(attrs={})
@@ -95,7 +95,7 @@ module Sumo
         :availability_zone => availability_zone,
         :key_name => key_name,
         :group_ids => [security_group],
-        :user_data => '').first
+        :user_data => user_data).first
 
       update_attributes! :instance_id => result[:aws_instance_id]
     end
@@ -257,7 +257,7 @@ module Sumo
 		end
     
     def self.attrs
-      [:ami32, :ami64, :instance_type, :availability_zone, :key_name, :role_list, :security_group, :user]
+      [:ami32, :ami64, :instance_type, :availability_zone, :key_name, :role_list, :security_group, :user, :user_data]
     end
 
     def refresh
